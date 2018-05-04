@@ -59,11 +59,11 @@ public class Solution {
                     "    MovieID integer NOT NULL CHECK (MovieID > 0),\n" +
                     "    MovieName text NOT NULL,\n" +
                     "    MovieDescription text NOT NULL,\n" +
-                    "    PRIMARY KEY (MovieID),\n" +
+                    "    PRIMARY KEY (MovieID)\n" +
                     ")");
             pstmt.execute();
         } catch (SQLException e) {
-            //e.printStackTrace()();
+            e.printStackTrace();
         } finally {
             try {
                 pstmt.close();
@@ -317,33 +317,244 @@ public class Solution {
     }
 
     public static ReturnValue updateViewer(Viewer viewer) {
-
-        return null;
+        if(viewer.getId() <= 0 || viewer.getName() == null) return ReturnValue.BAD_PARAMS;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try{
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Viewers WHERE ViewerID = " + viewer.getId());
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            pstmt = connection.prepareStatement("UPDATE Viewers " +
+                    "SET ViewerName = '" + viewer.getName() + "'" +
+                    " WHERE ViewerID = " + viewer.getId());
+            pstmt.execute();
+            res.close();
+        }catch (SQLException e) {
+            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            else
+            {
+                return ReturnValue.ERROR;
+            }
+        }finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
     public static Viewer getViewer(Integer viewerId) {
-
-        return null;
+        Viewer new_viewer = new Viewer();
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try{
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Viewers WHERE ViewerID = " + viewerId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1){
+                new_viewer = Viewer.badViewer();
+            }else{
+                pstmt = connection.prepareStatement("SELECT * FROM Viewers WHERE ViewerID = " + viewerId);
+                res = pstmt.executeQuery();
+                res.next();
+                new_viewer.setId(viewerId);
+                new_viewer.setName(res.getString("ViewerName"));
+            }
+            res.close();
+        } catch (SQLException e) {
+            return Viewer.badViewer();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return Viewer.badViewer();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return Viewer.badViewer();
+            }
+        }
+        return new_viewer;
     }
 
 
     public static ReturnValue createMovie(Movie movie) {
-
-        return null;
+        if(movie.getId() <= 0 || movie.getName() == null || movie.getDescription() == null){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("INSERT INTO Movies" +
+                    " VALUES(" + movie.getId() + "," +
+                    "'" + movie.getName()+ "'" + "," +
+                   "'" + movie.getDescription() + "'" + ")");
+            pstmt.execute();
+        } catch (SQLException e) {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue())
+            {
+                return ReturnValue.ALREADY_EXISTS;
+            }
+            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            else
+            {
+                return ReturnValue.ERROR;
+            }
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
     public static ReturnValue deleteMovie(Movie movie) {
-
-        return null;
+        if(movie.getId() <=0){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Movies WHERE MovieID = " + movie.getId());
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) != 1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            else {
+                pstmt = connection.prepareStatement("DELETE FROM Movies " +
+                        "WHERE MovieID = " + movie.getId());
+                pstmt.execute();
+            }
+            res.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
     public static ReturnValue updateMovie(Movie movie) {
-        return null;
+        if(movie.getId() <= 0 || movie.getDescription() == null) return ReturnValue.BAD_PARAMS;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try{
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Movies WHERE MovieID = " + movie.getId());
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            pstmt = connection.prepareStatement("UPDATE Movies " +
+                    "SET MovieDescription = '" + movie.getDescription() + "'" +
+                    " WHERE MovieID = " + movie.getId());
+            pstmt.execute();
+            res.close();
+        }catch (SQLException e) {
+            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            else
+            {
+                return ReturnValue.ERROR;
+            }
+        }finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+
+        return ReturnValue.OK;
     }
 
     public static Movie getMovie(Integer movieId) {
-
-        return null;
+        Movie new_movie = new Movie();
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try{
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Movies WHERE MovieID = " + movieId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1){
+                new_movie = Movie.badMovie();
+            }else{
+                pstmt = connection.prepareStatement("SELECT * FROM Movies WHERE MovieID = " + movieId);
+                res = pstmt.executeQuery();
+                res.next();
+                new_movie.setId(movieId);
+                new_movie.setName(res.getString("MovieName"));
+                new_movie.setDescription(res.getString("MovieDescription"));
+            }
+            res.close();
+        } catch (SQLException e) {
+            return Movie.badMovie();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return Movie.badMovie();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return Movie.badMovie();
+            }
+        }
+        return new_movie;
     }
 
 
