@@ -88,8 +88,9 @@ public class Solution {
                     "    ViewerID integer NOT NULL CHECK (ViewerID > 0),\n" +
                     "    MovieID integer NOT NULL CHECK (MovieID > 0),\n" +
                     "    Rate text,\n" +
+                    " UNIQUE (ViewerID,MovieID),\n" +
                     "    FOREIGN KEY(ViewerID) REFERENCES Viewers(ViewerID) ON DELETE CASCADE ,\n" +
-                    "    FOREIGN KEY(MovieID) REFERENCES Movies(MovieID) ON DELETE CASCADE ,\n" +
+                    "    FOREIGN KEY(MovieID) REFERENCES Movies(MovieID) ON DELETE CASCADE \n" +
                     ")");
             pstmt.execute();
         } catch (SQLException e) {
@@ -559,24 +560,156 @@ public class Solution {
 
 
     public static ReturnValue addView(Integer viewerId, Integer movieId) {
+        if(viewerId <= 0 ||movieId <= 0){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("INSERT INTO Views" +
+                    " VALUES(" + viewerId + "," +
+                     movieId + ")");
+            pstmt.execute();
+        } catch (SQLException e) {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue())
+            {
+                return ReturnValue.ALREADY_EXISTS;
+            }
+            /*
+            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
+            {
+                return ReturnValue.BAD_PARAMS;
+            }*/
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue())
+            {
+                return ReturnValue.NOT_EXISTS;
+            }
+            else
+            {
+                return ReturnValue.ERROR;
+            }
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
 
-        return null;
     }
 
     public static ReturnValue removeView(Integer viewerId, Integer movieId) {
-
-        return null;
+        if(viewerId <=0 || movieId <= 0){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId +
+            " AND MovieID = " + movieId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) != 1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            else {
+                pstmt = connection.prepareStatement("DELETE FROM Views " +
+                        "WHERE ViewerID = " + viewerId +
+                        " AND MovieID = " + movieId);
+                pstmt.execute();
+            }
+            res.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
     public static Integer getMovieViewCount(Integer movieId) {
-
-        return null;
+        if(movieId <= 0){
+            return 0;
+        }
+        int viewsCount = 0;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(ViewerID) FROM Views WHERE MovieID = " + movieId + " GROUP BY MovieID ");
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            viewsCount = res.getInt(1);
+            res.close();
+        } catch (SQLException e) {
+            return 0;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return viewsCount;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return viewsCount;
+            }
+        }
+        return viewsCount;
     }
 
 
     public static ReturnValue addMovieRating(Integer viewerId, Integer movieId, MovieRating rating) {
-
-        return null;
+        if(viewerId <= 0 || movieId <= 0 || rating == null){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            pstmt = connection.prepareStatement("UPDATE Views " +
+                    "SET Rate = '" + rating + "'" +
+                    " WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId);
+            pstmt.execute();
+            res.close();
+        } catch (SQLException e) {
+                return ReturnValue.ERROR;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
     public static ReturnValue removeMovieRating(Integer viewerId, Integer movieId) {

@@ -1,6 +1,7 @@
 package techflix;
 
 import org.junit.Test;
+import techflix.business.MovieRating;
 import techflix.business.ReturnValue;
 import techflix.business.Viewer;
 import techflix.business.Movie;
@@ -298,6 +299,170 @@ public class SimpleTest extends AbstractTest {
         ReturnValue val = Solution.updateMovie(movie1);
         assertEquals(ReturnValue.BAD_PARAMS,val);
     }
+
+    @Test
+    public void addView_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        ReturnValue val = Solution.addView(1,1);
+        assertEquals(ReturnValue.OK,val);
+    }
+
+    @Test
+    public void addView_ForeignKeyViolation(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        ReturnValue val = Solution.addView(2,1);
+        assertEquals(ReturnValue.NOT_EXISTS,val);
+    }
+
+    @Test
+    public void addView_AlreadyExists(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        ReturnValue val = Solution.addView(1,1);
+        assertEquals(ReturnValue.ALREADY_EXISTS,val);
+    }
+
+    @Test
+    public void removeView_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        ReturnValue val = Solution.removeView(1,1);
+        assertEquals(ReturnValue.OK,val);
+    }
+
+    @Test
+    public void removeView_NotExists(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        ReturnValue val = Solution.removeView(2,1);
+        assertEquals(ReturnValue.NOT_EXISTS,val);
+
+        Solution.removeView(1,1);
+        ReturnValue val2 = Solution.removeView(1,1);
+        assertEquals(ReturnValue.NOT_EXISTS,val2);
+    }
+
+    @Test
+    public void addMovieRating_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        ReturnValue val = Solution.addMovieRating(1,1,MovieRating.LIKE);
+        assertEquals(ReturnValue.OK,val);
+    }
+
+    @Test
+    public void getMovieViewCount_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Viewer viewer2 = new Viewer();
+        viewer2.setName("viewer2");
+        viewer2.setId(2);
+        Solution.createViewer(viewer2);
+
+        Viewer viewer3 = new Viewer();
+        viewer3.setName("viewer3");
+        viewer3.setId(3);
+        Solution.createViewer(viewer3);
+
+        Viewer viewer4 = new Viewer();
+        viewer4.setName("viewer4");
+        viewer4.setId(4);
+        Solution.createViewer(viewer4);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Movie movie2 = new Movie();
+        movie2.setId(2);
+        movie2.setName("Finding Nemo");
+        movie2.setDescription("Children");
+        Solution.createMovie(movie2);
+
+        Movie movie3 = new Movie();
+        movie2.setId(3);
+        movie2.setName("The godfather");
+        movie2.setDescription("Crime");
+        Solution.createMovie(movie3);
+
+        Solution.addView(1,1);
+        Solution.addView(2,1);
+        Solution.addView(3,1);
+        Solution.addView(4,2);
+
+        int TitanicViewsCount = Solution.getMovieViewCount(1);
+        assertEquals(3,TitanicViewsCount);
+        int FindingNemoViewsCount = Solution.getMovieViewCount(2);
+        assertEquals(1,FindingNemoViewsCount);
+        int TheGodfatherViewsCount = Solution.getMovieViewCount(3);
+        assertEquals(0,TheGodfatherViewsCount);
+    }
+
 
 
 }
