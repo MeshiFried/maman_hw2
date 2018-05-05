@@ -503,6 +503,72 @@ public class SimpleTest extends AbstractTest {
         assertEquals(ReturnValue.OK,val);
     }
 
+    @Test
+    public void getMovieLikeCount_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
 
+        Viewer viewer2 = new Viewer();
+        viewer2.setName("viewer2");
+        viewer2.setId(2);
+        Solution.createViewer(viewer2);
+
+        Viewer viewer3 = new Viewer();
+        viewer3.setName("viewer3");
+        viewer3.setId(3);
+        Solution.createViewer(viewer3);
+
+        Viewer viewer4 = new Viewer();
+        viewer4.setName("viewer4");
+        viewer4.setId(4);
+        Solution.createViewer(viewer4);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Movie movie2 = new Movie();
+        movie2.setId(2);
+        movie2.setName("Finding Nemo");
+        movie2.setDescription("Children");
+        Solution.createMovie(movie2);
+
+
+        Solution.addView(1,1);
+        Solution.addMovieRating(1,1,MovieRating.LIKE);
+        Solution.addView(2,1);
+        Solution.addMovieRating(2,1,MovieRating.LIKE);
+        Solution.addView(3,1);
+        Solution.addMovieRating(3,1,MovieRating.DISLIKE);
+        Solution.addView(4,2);
+
+        int TitanicLikesCount = Solution.getMovieLikesCount(1);
+        assertEquals(2,TitanicLikesCount);
+        int FindingNemoLikesCount = Solution.getMovieLikesCount(2);
+        assertEquals(0,FindingNemoLikesCount);
+    }
+
+    @Test
+    public void gerMovieLikesCount_NotExist(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        Solution.addMovieRating(1,1,MovieRating.LIKE);
+        int count = Solution.getMovieLikesCount(2);
+        assertEquals(0,count);
+    }
 
 }

@@ -660,7 +660,7 @@ public class Solution {
             viewsCount = res.getInt(1);
             res.close();
         } catch (SQLException e) {
-            return 0;
+            return viewsCount;
         } finally {
             try {
                 pstmt.close();
@@ -745,17 +745,47 @@ public class Solution {
             }
         }
         return ReturnValue.OK;
-
     }
 
     public static int getMovieLikesCount(int movieId) {
+        if(movieId <= 0){
+            return 0;
+        }
+        return getMovieRateCount(movieId,MovieRating.LIKE);
+    }
 
-        return -1;
+    private static int getMovieRateCount(int movieId, MovieRating rate){
+        int likesCount = 0;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(Rate) FROM Views WHERE MovieID = " + movieId + " GROUP BY Rate,MovieID " + " HAVING Rate = " + "'" + rate + "'");
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            likesCount = res.getInt(1);
+            res.close();
+        } catch (SQLException e) {
+            return likesCount;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return likesCount;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return likesCount;
+            }
+            return likesCount;
+        }
     }
 
     public static int getMovieDislikesCount(int movieId) {
-
-        return -1;
+        if(movieId <= 0){
+            return 0;
+        }
+        return getMovieRateCount(movieId,MovieRating.DISLIKE);
     }
 
     public static ArrayList<Integer> getSimilarViewers(Integer viewerId) {
