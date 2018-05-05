@@ -463,6 +463,46 @@ public class SimpleTest extends AbstractTest {
         assertEquals(0,TheGodfatherViewsCount);
     }
 
+    @Test
+    public void removeMovieRating_NotExists(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        ReturnValue val = Solution.removeMovieRating(1,1);
+        assertEquals(ReturnValue.NOT_EXISTS,val);
+
+    }
+
+    @Test
+    public void removeMovieRating_success(){
+        Viewer viewer1 = new Viewer();
+        viewer1.setName("viewer1");
+        viewer1.setId(1);
+        Solution.createViewer(viewer1);
+
+
+        Movie movie1 = new Movie();
+        movie1.setId(1);
+        movie1.setName("Titanic");
+        movie1.setDescription("Drama");
+        Solution.createMovie(movie1);
+
+        Solution.addView(1,1);
+        Solution.addMovieRating(1,1,MovieRating.LIKE);
+        ReturnValue val = Solution.removeMovieRating(1,1);
+        assertEquals(ReturnValue.OK,val);
+    }
+
 
 
 }

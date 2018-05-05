@@ -713,8 +713,39 @@ public class Solution {
     }
 
     public static ReturnValue removeMovieRating(Integer viewerId, Integer movieId) {
+        if(viewerId <=0 || movieId <=0 ){
+            return ReturnValue.BAD_PARAMS;
+        }
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId + " AND Rate IS NOT NULL ");
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if(res.getInt(1) !=1) {
+                return ReturnValue.NOT_EXISTS;
+            }
+            pstmt = connection.prepareStatement("UPDATE Views " +
+                    "SET Rate =  null "+
+                    " WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId);
+            pstmt.execute();
+            res.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
 
-        return null;
     }
 
     public static int getMovieLikesCount(int movieId) {
