@@ -13,6 +13,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import static java.lang.Math.ceil;
+
 public class Solution {
 
     public static void createTables() {
@@ -53,7 +55,6 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-
             pstmt = connection.prepareStatement("CREATE TABLE Movies\n" +
                     "(\n" +
                     "    MovieID integer NOT NULL CHECK (MovieID > 0),\n" +
@@ -257,6 +258,9 @@ public class Solution {
 
 
     public static ReturnValue createViewer(Viewer viewer) {
+        if (viewer.getId() <= 0 || viewer.getName() == null) {
+            return ReturnValue.BAD_PARAMS;
+        }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -267,13 +271,15 @@ public class Solution {
             pstmt.execute();
         } catch (SQLException e) {
             Integer error = Integer.valueOf(e.getSQLState());
-            if (error == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue() || error == PostgresSQLErrorCodes
-                    .NOT_NULL_VIOLATION.getValue()) {
-                return ReturnValue.BAD_PARAMS;
-            } else if (error == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
+            if (error == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ReturnValue.ALREADY_EXISTS;
+            } else if (error == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue()) {
+                return ReturnValue.BAD_PARAMS;
+            } else if (error == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
+                return ReturnValue.BAD_PARAMS;
+            } else {
+                return ReturnValue.ERROR;
             }
-            return ReturnValue.ERROR;
         } finally {
             try {
                 pstmt.close();
@@ -293,14 +299,18 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("DELETE from Viewers" +
-                    " WHERE ViewerID =? ");
-            pstmt.setInt(1, viewer.getId());
-            int affectedRows = pstmt.executeUpdate();
-            System.out.println("deleted " + affectedRows + " rows");//todo: problem!
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Viewers WHERE ViewerID = " + viewer.getId());
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) != 1) {
+                return ReturnValue.NOT_EXISTS;
+            } else {
+                pstmt = connection.prepareStatement("DELETE FROM Viewers " +
+                        "WHERE ViewerID = " + viewer.getId());
+                pstmt.execute();
+            }
+            res.close();
         } catch (SQLException e) {
-            Integer error = Integer.valueOf(e.getSQLState());
-            //todo: add error of NOT_EXISTS
             return ReturnValue.ERROR;
         } finally {
             try {
@@ -318,14 +328,14 @@ public class Solution {
     }
 
     public static ReturnValue updateViewer(Viewer viewer) {
-        if(viewer.getId() <= 0 || viewer.getName() == null) return ReturnValue.BAD_PARAMS;
+        if (viewer.getId() <= 0 || viewer.getName() == null) return ReturnValue.BAD_PARAMS;
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        try{
+        try {
             pstmt = connection.prepareStatement("SELECT Count(*) FROM Viewers WHERE ViewerID = " + viewer.getId());
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1) {
+            if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
             }
             pstmt = connection.prepareStatement("UPDATE Viewers " +
@@ -333,20 +343,16 @@ public class Solution {
                     " WHERE ViewerID = " + viewer.getId());
             pstmt.execute();
             res.close();
-        }catch (SQLException e) {
-            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
-            {
+        } catch (SQLException e) {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
             }
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
-            }
-            else
-            {
+            } else {
                 return ReturnValue.ERROR;
             }
-        }finally {
+        } finally {
             try {
                 pstmt.close();
             } catch (SQLException e) {
@@ -365,13 +371,13 @@ public class Solution {
         Viewer new_viewer = new Viewer();
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        try{
+        try {
             pstmt = connection.prepareStatement("SELECT Count(*) FROM Viewers WHERE ViewerID = " + viewerId);
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1){
+            if (res.getInt(1) != 1) {
                 new_viewer = Viewer.badViewer();
-            }else{
+            } else {
                 pstmt = connection.prepareStatement("SELECT * FROM Viewers WHERE ViewerID = " + viewerId);
                 res = pstmt.executeQuery();
                 res.next();
@@ -398,7 +404,7 @@ public class Solution {
 
 
     public static ReturnValue createMovie(Movie movie) {
-        if(movie.getId() <= 0 || movie.getName() == null || movie.getDescription() == null){
+        if (movie.getId() <= 0 || movie.getName() == null || movie.getDescription() == null) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
@@ -406,24 +412,19 @@ public class Solution {
         try {
             pstmt = connection.prepareStatement("INSERT INTO Movies" +
                     " VALUES(" + movie.getId() + "," +
-                    "'" + movie.getName()+ "'" + "," +
-                   "'" + movie.getDescription() + "'" + ")");
+                    "'" + movie.getName() + "'" + "," +
+                    "'" + movie.getDescription() + "'" + ")");
             pstmt.execute();
         } catch (SQLException e) {
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ReturnValue.ALREADY_EXISTS;
             }
-            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
             }
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
-            }
-            else
-            {
+            } else {
                 return ReturnValue.ERROR;
             }
         } finally {
@@ -442,7 +443,7 @@ public class Solution {
     }
 
     public static ReturnValue deleteMovie(Movie movie) {
-        if(movie.getId() <=0){
+        if (movie.getId() <= 0) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
@@ -453,8 +454,7 @@ public class Solution {
             res.next();
             if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
-            }
-            else {
+            } else {
                 pstmt = connection.prepareStatement("DELETE FROM Movies " +
                         "WHERE MovieID = " + movie.getId());
                 pstmt.execute();
@@ -478,14 +478,14 @@ public class Solution {
     }
 
     public static ReturnValue updateMovie(Movie movie) {
-        if(movie.getId() <= 0 || movie.getDescription() == null) return ReturnValue.BAD_PARAMS;
+        if (movie.getId() <= 0 || movie.getDescription() == null) return ReturnValue.BAD_PARAMS;
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        try{
+        try {
             pstmt = connection.prepareStatement("SELECT Count(*) FROM Movies WHERE MovieID = " + movie.getId());
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1) {
+            if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
             }
             pstmt = connection.prepareStatement("UPDATE Movies " +
@@ -493,20 +493,16 @@ public class Solution {
                     " WHERE MovieID = " + movie.getId());
             pstmt.execute();
             res.close();
-        }catch (SQLException e) {
-            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
-            {
+        } catch (SQLException e) {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
             }
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue()) {
                 return ReturnValue.BAD_PARAMS;
-            }
-            else
-            {
+            } else {
                 return ReturnValue.ERROR;
             }
-        }finally {
+        } finally {
             try {
                 pstmt.close();
             } catch (SQLException e) {
@@ -526,13 +522,13 @@ public class Solution {
         Movie new_movie = new Movie();
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        try{
+        try {
             pstmt = connection.prepareStatement("SELECT Count(*) FROM Movies WHERE MovieID = " + movieId);
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1){
+            if (res.getInt(1) != 1) {
                 new_movie = Movie.badMovie();
-            }else{
+            } else {
                 pstmt = connection.prepareStatement("SELECT * FROM Movies WHERE MovieID = " + movieId);
                 res = pstmt.executeQuery();
                 res.next();
@@ -560,7 +556,7 @@ public class Solution {
 
 
     public static ReturnValue addView(Integer viewerId, Integer movieId) {
-        if(viewerId <= 0 ||movieId <= 0){
+        if (viewerId <= 0 || movieId <= 0) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
@@ -568,11 +564,10 @@ public class Solution {
         try {
             pstmt = connection.prepareStatement("INSERT INTO Views" +
                     " VALUES(" + viewerId + "," +
-                     movieId + ")");
+                    movieId + ")");
             pstmt.execute();
         } catch (SQLException e) {
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ReturnValue.ALREADY_EXISTS;
             }
             /*
@@ -584,12 +579,9 @@ public class Solution {
             {
                 return ReturnValue.BAD_PARAMS;
             }*/
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue())
-            {
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue()) {
                 return ReturnValue.NOT_EXISTS;
-            }
-            else
-            {
+            } else {
                 return ReturnValue.ERROR;
             }
         } finally {
@@ -609,20 +601,19 @@ public class Solution {
     }
 
     public static ReturnValue removeView(Integer viewerId, Integer movieId) {
-        if(viewerId <=0 || movieId <= 0){
+        if (viewerId <= 0 || movieId <= 0) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
             pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId +
-            " AND MovieID = " + movieId);
+                    " AND MovieID = " + movieId);
             ResultSet res = pstmt.executeQuery();
             res.next();
             if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
-            }
-            else {
+            } else {
                 pstmt = connection.prepareStatement("DELETE FROM Views " +
                         "WHERE ViewerID = " + viewerId +
                         " AND MovieID = " + movieId);
@@ -647,14 +638,15 @@ public class Solution {
     }
 
     public static Integer getMovieViewCount(Integer movieId) {
-        if(movieId <= 0){
+        if (movieId <= 0) {
             return 0;
         }
         int viewsCount = 0;
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("SELECT Count(ViewerID) FROM Views WHERE MovieID = " + movieId + " GROUP BY MovieID ");
+            pstmt = connection.prepareStatement("SELECT Count(ViewerID) FROM Views WHERE MovieID = " + movieId + " " +
+                    "GROUP BY MovieID ");
             ResultSet res = pstmt.executeQuery();
             res.next();
             viewsCount = res.getInt(1);
@@ -678,16 +670,17 @@ public class Solution {
 
 
     public static ReturnValue addMovieRating(Integer viewerId, Integer movieId, MovieRating rating) {
-        if(viewerId <= 0 || movieId <= 0 || rating == null){
+        if (viewerId <= 0 || movieId <= 0 || rating == null) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId);
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND " +
+                    "MovieID = " + movieId);
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1) {
+            if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
             }
             pstmt = connection.prepareStatement("UPDATE Views " +
@@ -696,7 +689,7 @@ public class Solution {
             pstmt.execute();
             res.close();
         } catch (SQLException e) {
-                return ReturnValue.ERROR;
+            return ReturnValue.ERROR;
         } finally {
             try {
                 pstmt.close();
@@ -713,20 +706,21 @@ public class Solution {
     }
 
     public static ReturnValue removeMovieRating(Integer viewerId, Integer movieId) {
-        if(viewerId <=0 || movieId <=0 ){
+        if (viewerId <= 0 || movieId <= 0) {
             return ReturnValue.BAD_PARAMS;
         }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId + " AND Rate IS NOT NULL ");
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId + " AND " +
+                    "MovieID = " + movieId + " AND Rate IS NOT NULL ");
             ResultSet res = pstmt.executeQuery();
             res.next();
-            if(res.getInt(1) !=1) {
+            if (res.getInt(1) != 1) {
                 return ReturnValue.NOT_EXISTS;
             }
             pstmt = connection.prepareStatement("UPDATE Views " +
-                    "SET Rate =  null "+
+                    "SET Rate =  null " +
                     " WHERE ViewerID = " + viewerId + " AND MovieID = " + movieId);
             pstmt.execute();
             res.close();
@@ -748,18 +742,19 @@ public class Solution {
     }
 
     public static int getMovieLikesCount(int movieId) {
-        if(movieId <= 0){
+        if (movieId <= 0) {
             return 0;
         }
-        return getMovieRateCount(movieId,MovieRating.LIKE);
+        return getMovieRateCount(movieId, MovieRating.LIKE);
     }
 
-    private static int getMovieRateCount(int movieId, MovieRating rate){
+    private static int getMovieRateCount(int movieId, MovieRating rate) {
         int likesCount = 0;
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement("SELECT Count(Rate) FROM Views WHERE MovieID = " + movieId + " GROUP BY Rate,MovieID " + " HAVING Rate = " + "'" + rate + "'");
+            pstmt = connection.prepareStatement("SELECT Count(Rate) FROM Views WHERE MovieID = " + movieId + " GROUP " +
+                    "BY Rate,MovieID " + " HAVING Rate = " + "'" + rate + "'");
             ResultSet res = pstmt.executeQuery();
             res.next();
             likesCount = res.getInt(1);
@@ -782,15 +777,62 @@ public class Solution {
     }
 
     public static int getMovieDislikesCount(int movieId) {
-        if(movieId <= 0){
+        if (movieId <= 0) {
             return 0;
         }
-        return getMovieRateCount(movieId,MovieRating.DISLIKE);
+        return getMovieRateCount(movieId, MovieRating.DISLIKE);
     }
 
-    public static ArrayList<Integer> getSimilarViewers(Integer viewerId) {
 
-        return null;
+    public static ArrayList<Integer> getSimilarViewers(Integer viewerId) {
+        ArrayList<Integer> list = new ArrayList<Integer>();
+
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            int numberOfViews = res.getInt(1);
+            int numberOfViews_75percent = (int) ceil(0.75 * numberOfViews);
+
+            pstmt = connection.prepareStatement("SELECT ViewerID FROM \n" +
+                    "(\n" +
+                    "    SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
+                    "    (\n" +
+                    "        SELECT MovieID FROM Views WHERE ViewerID=" + viewerId + " \n" +
+                    "    )\n" +
+                    ")\n" +
+                    "    AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=" + numberOfViews_75percent + " \n");
+
+
+            res = pstmt.executeQuery();
+
+            while (res.next()) {
+                Integer viewerID = res.getInt(1);
+                if (viewerID != viewerId) list.add(viewerID);
+            }
+
+
+            res.close();
+
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+        }
+
+        return list;
     }
 
 
