@@ -1,6 +1,5 @@
 package techflix;
 
-import com.sun.scenario.effect.impl.state.LinearConvolveKernel;
 import techflix.business.Movie;
 import techflix.business.MovieRating;
 import techflix.business.ReturnValue;
@@ -571,15 +570,6 @@ public class Solution {
             if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.UNIQUE_VIOLATION.getValue()) {
                 return ReturnValue.ALREADY_EXISTS;
             }
-            /*
-            if(Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue())
-            {
-                return ReturnValue.BAD_PARAMS;
-            }
-            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.NOT_NULL_VIOLATION.getValue())
-            {
-                return ReturnValue.BAD_PARAMS;
-            }*/
             if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue()) {
                 return ReturnValue.NOT_EXISTS;
             } else {
@@ -792,25 +782,25 @@ public class Solution {
         PreparedStatement pstmt = null;
         try {
 
-            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId);
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID=(?)");
+            pstmt.setInt(1, viewerId);
             ResultSet res = pstmt.executeQuery();
             res.next();
             int numberOfViews = res.getInt(1);
             int numberOfViews_75percent = (int) ceil(0.75 * numberOfViews);
 
             pstmt = connection.prepareStatement("SELECT ViewerID FROM \n" +
-                    "(\n" +
-                    "    SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
-                    "    (\n" +
-                    "        SELECT MovieID FROM Views WHERE ViewerID=" + viewerId + " \n" +
-                    "    )\n" +
-                    ")\n" +
-                    "    AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=" + numberOfViews_75percent + " \n");
+                    "( SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
+                    "    ( SELECT MovieID FROM Views WHERE ViewerID=(?) ) \n " +
+                    ") AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=(?) AND ViewerID!=(?) \n");
+            pstmt.setInt(1, viewerId);
+            pstmt.setInt(2, numberOfViews_75percent);
+            pstmt.setInt(3, viewerId);
             res = pstmt.executeQuery();
 
             while (res.next()) {
                 Integer viewerID = res.getInt(1);
-                if (viewerID != viewerId) list.add(viewerID);
+                list.add(viewerID);
             }
 
             res.close();
@@ -839,19 +829,17 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-
             pstmt = connection.prepareStatement(
                     " SELECT Viewers.ViewerID AS id, COUNT(Rate) AS ratesCount, COUNT(Views.ViewerID) AS viewsCount " +
-                            "\n" +
-                            "FROM Viewers LEFT JOIN Views ON (Viewers.ViewerID = Views.ViewerID) \n" + "GROUP BY id " +
-                            "\n" +
-                            "ORDER BY viewsCount DESC, ratesCount DESC, id ASC \n" + "LIMIT 10 \n");
+                            "\n FROM Viewers LEFT JOIN Views ON (Viewers.ViewerID = Views.ViewerID) \n" +
+                            "GROUP BY id ORDER BY viewsCount DESC, ratesCount DESC, id ASC LIMIT 10 \n");
             ResultSet res = pstmt.executeQuery();
 
             while (res.next()) {
                 Integer viewerID = res.getInt(1);
                 list.add(viewerID);
             }
+
             res.close();
         } catch (SQLException e) {
             return new ArrayList<Integer>();
@@ -879,7 +867,9 @@ public class Solution {
         PreparedStatement pstmt = null;
         try {
 
-            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId);
+            // find SimilarViewers(viewerId):
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID=(?)");
+            pstmt.setInt(1, viewerId);
             ResultSet res = pstmt.executeQuery();
             res.next();
             int numberOfViews = res.getInt(1);
@@ -890,21 +880,24 @@ public class Solution {
 
             pstmt = connection.prepareStatement("CREATE TABLE SimilarViewers(ViewerID) AS \n" +
                     "SELECT ViewerID FROM \n" +
-                    "(\n" +
-                    "    SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
-                    "    (\n" +
-                    "        SELECT MovieID FROM Views WHERE ViewerID=" + viewerId + " \n" +
-                    "    )\n" +
-                    ")\n" +
-                    "    AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=" + numberOfViews_75percent + " \n");
+                    "( SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
+                    "    ( SELECT MovieID FROM Views WHERE ViewerID=(?) ) \n " +
+                    ") AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=(?) AND ViewerID!=(?) \n");
+            pstmt.setInt(1, viewerId);
+            pstmt.setInt(2, numberOfViews_75percent);
+            pstmt.setInt(3, viewerId);
             pstmt.execute();
 
+            // find getMoviesRecommendations(viewerId):
             MovieRating rate = MovieRating.LIKE;
             pstmt = connection.prepareStatement
-                    ("SELECT MovieID AS id, SUM(CASE Rate WHEN "+ "'" + rate + "'"  + " THEN 1 ELSE 0 END) as ratesCount \n" +
-                    "FROM Views, SimilarViewers \n" + "WHERE (Views.ViewerID=SimilarViewers.ViewerID \n" +
-                    "AND MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=" + viewerId + ")) \n" +
-                    "GROUP BY id \n" + "ORDER BY ratesCount DESC, id ASC \n" + "LIMIT 10 \n");
+                    ("SELECT MovieID AS id, SUM(CASE Rate WHEN \'LIKE\' THEN 1 ELSE 0 END) as ratesCount \n" +
+                            "FROM Views, SimilarViewers \n WHERE (Views.ViewerID=SimilarViewers.ViewerID \n" +
+                            "AND MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=(?)) \n" +
+                            "AND (Rate IS NULL OR Rate=\'LIKE\'))" +
+                            " GROUP BY id ORDER BY ratesCount DESC, id ASC LIMIT 10");
+
+            pstmt.setInt(1, viewerId);
             res = pstmt.executeQuery();
 
             while (res.next()) {
@@ -936,8 +929,121 @@ public class Solution {
 
 
     public static ArrayList<Integer> getConditionalRecommendations(Integer viewerId, int movieId) {
+        ArrayList<Integer> list = new ArrayList<Integer>();
 
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+
+            // check if viewerId already rate movieId. if not - return empty ArrayList.
+            pstmt = connection.prepareStatement(
+                    "SELECT COUNT(Rate) FROM Views WHERE ViewerID=(?) AND MovieID=(?)");
+            pstmt.setInt(1, viewerId);
+            pstmt.setInt(2, movieId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) == 0) {
+                return new ArrayList<Integer>();
+            }
+
+
+            // find SimilarViewers(viewerId):
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID=(?)");
+            pstmt.setInt(1, viewerId);
+            res = pstmt.executeQuery();
+            res.next();
+            int numberOfViews = res.getInt(1);
+            int numberOfViews_75percent = (int) ceil(0.75 * numberOfViews);
+
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarViewers");
+            pstmt.execute();
+
+            pstmt = connection.prepareStatement("CREATE TABLE SimilarViewers(ViewerID) AS \n" +
+                    "SELECT ViewerID FROM \n" +
+                    "( SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
+                    "    ( SELECT MovieID FROM Views WHERE ViewerID=(?) ) \n " +
+                    ") AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=(?) AND ViewerID!=(?) \n");
+            pstmt.setInt(1, viewerId);
+            pstmt.setInt(2, numberOfViews_75percent);
+            pstmt.setInt(3, viewerId);
+            pstmt.execute();
+
+            // check if similar viewers exist. if not - return empty ArrayList.
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM SimilarViewers");
+            res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) == 0) {
+                pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarViewers");
+                pstmt.execute();
+                return new ArrayList<Integer>();
+            }
+
+
+            // find SimilarRankers(viewerId, movieId):
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarRankers");
+            pstmt.execute();
+
+            pstmt = connection.prepareStatement("CREATE TABLE SimilarRankers(ViewerID) AS \n" +
+                    "SELECT SimilarViewers.ViewerID FROM Views, SimilarViewers \n" +
+                    "WHERE (Views.ViewerID=SimilarViewers.ViewerID) AND (MovieID=(?)) AND " +
+                    "(Rate=(SELECT Rate FROM Views WHERE (Views.ViewerID=(?) AND MovieID=(?))))");
+            pstmt.setInt(1, movieId);
+            pstmt.setInt(2, viewerId);
+            pstmt.setInt(3, movieId);
+            pstmt.execute();
+
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarViewers");
+            pstmt.execute();
+
+            // check if similar rankers exist. if not - return empty ArrayList.
+            pstmt = connection.prepareStatement("SELECT COUNT(*) FROM SimilarRankers");
+            res = pstmt.executeQuery();
+            res.next();
+            if (res.getInt(1) == 0) {
+                pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarRankers");
+                pstmt.execute();
+                return new ArrayList<Integer>();
+            }
+
+
+            // find getConditionalRecommendations(viewerId, movieId):
+            MovieRating likeRate = MovieRating.LIKE;
+            MovieRating dislikeRate = MovieRating.DISLIKE;
+
+            pstmt = connection.prepareStatement
+                    ("SELECT MovieID AS id, SUM(CASE Rate WHEN \'LIKE\' THEN 1 ELSE 0 END) as " +
+                            "ratesCount \n FROM Views, SimilarRankers \n " +
+                            "WHERE (Views.ViewerID=SimilarRankers.ViewerID \n" +
+                            "AND MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=(?)) \n" +
+                            "AND (Rate IS NULL OR Rate=\'LIKE\')) " +
+                            "GROUP BY id ORDER BY ratesCount DESC, id ASC LIMIT 10");
+            pstmt.setInt(1, viewerId);
+            res = pstmt.executeQuery();
+            while (res.next()) {
+                Integer movieID = res.getInt(1);
+                list.add(movieID);
+            }
+
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarRankers");
+            pstmt.execute();
+
+            res.close();
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+        }
+
+        return list;
     }
 
 }

@@ -6,9 +6,6 @@ import techflix.business.ReturnValue;
 import techflix.business.Viewer;
 import techflix.business.Movie;
 
-import javax.swing.*;
-
-import java.sql.SQLException;
 import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
@@ -706,6 +703,10 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(1, 9);
         Solution.addView(1, 10);
 
+        // getSimilarViewers(viewer1):
+        ArrayList<Integer> list = Solution.getSimilarViewers(1);
+        assertEquals(0, list.size());
+
         // viewer2:     viewer1=9/10=90%        viewer2=.........        viewer3=10/10=100%     viewer4=7/11=63%
         // viewer5=9/16=56%    viewer6=0/7=0%
         Solution.addView(2, 1);
@@ -781,7 +782,7 @@ public class SimpleTest extends AbstractTest {
 
 
         // getSimilarViewers(viewer1):
-        ArrayList<Integer> list = Solution.getSimilarViewers(1);
+        list = Solution.getSimilarViewers(1);
         assertEquals(2, list.size());
         assertTrue(list.contains(2));
         assertTrue(list.contains(5));
@@ -1080,7 +1081,7 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(13, 11);
         Solution.addMovieRating(13, 11, MovieRating.LIKE);
 
-        // movieID=12:   likes=7
+        // movieID=12:   likes=7    "emptyLikes"=2
         Solution.addView(2, 12);
         Solution.addMovieRating(2, 12, MovieRating.LIKE);
         Solution.addView(3, 12);
@@ -1183,7 +1184,7 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(15, 20);//not similar
         Solution.addMovieRating(15, 0, MovieRating.LIKE);
 
-        // movieID=21:   likes=3
+        // movieID=21:   likes=3        "emptyLikes"=3
         Solution.addView(7, 21);
         Solution.addMovieRating(7, 21, MovieRating.LIKE);
         Solution.addView(8, 21);
@@ -1194,7 +1195,7 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(12, 21);
         Solution.addMovieRating(12, 21, MovieRating.LIKE);
 
-        // movieID=14:   likes=0
+        // movieID=14:   likes=0        "emptyLikes"=1
         Solution.addView(14, 14);
         Solution.addView(15, 14);//not similar
         Solution.addMovieRating(15, 14, MovieRating.LIKE);
@@ -1245,7 +1246,7 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(2, 23);
         Solution.addMovieRating(2, 23, MovieRating.DISLIKE);
 
-        // movieID=24:   likes=0
+        // movieID=24:   likes=0    "emptyLikes"=1
         Solution.addView(4, 24);
         Solution.addView(5, 24);
         Solution.addMovieRating(5, 24, MovieRating.DISLIKE);
@@ -1256,17 +1257,17 @@ public class SimpleTest extends AbstractTest {
         // (1)  movie15:    likes=9     id=15
         // (-)  movie9:    likes=9      id=9    --- not include - viewer1 already view movie9
         // (2)  movie11:    likes=7     id=11
-        // (3)  movie12:    likes=7     id=12
+        // (3)  movie12:    likes=7     id=12       "emptyLikes"=2
         // (4)  movie13:    likes=5     id=13
         // (4)  movie18:    likes=5     id=18
         // (6)  movie19:    likes=5     id=19
         // (7)  movie20:    likes=4     id=20
-        // (8)  movie21:    likes=3     id=21
-        // (9)  movie14:    likes=0     id=14
-        // (10) movie16:    likes=0     id=16
-        // (11) movie22:    likes=0     id=22
-        // (12) movie23:    likes=0     id=23
-        // (13) movie24:    likes=0     id=24
+        // (8)  movie21:    likes=3     id=21       "emptyLikes"=3
+        // (9)  movie14:    likes=0     id=14       "emptyLikes"=1
+        // (10) movie24:    likes=0     id=24       "emptyLikes"=1
+        // (11) movie16:    likes=0     id=16
+        // (12) movie22:    likes=0     id=22
+        // (13) movie23:    likes=0     id=23
 
         list = Solution.getMoviesRecommendations(1);
         assertEquals(10, list.size());
@@ -1279,17 +1280,324 @@ public class SimpleTest extends AbstractTest {
         assertEquals(Integer.valueOf(20), list.get(6));
         assertEquals(Integer.valueOf(21), list.get(7));
         assertEquals(Integer.valueOf(14), list.get(8));
-        assertEquals(Integer.valueOf(16), list.get(9));
-//        assertEquals(Integer.valueOf(22), list.get(10));
-//        assertEquals(Integer.valueOf(23), list.get(11));
-//        assertEquals(Integer.valueOf(24), list.get(12));
+        assertEquals(Integer.valueOf(24), list.get(9));
+//        assertEquals(Integer.valueOf(16), list.get(10));
+//        assertEquals(Integer.valueOf(22), list.get(11));
+//        assertEquals(Integer.valueOf(23), list.get(12));
 
     }
 
     // getConditionalRecommendations:
 
     @Test
-    public void getConditionalRecommendations_test() {
+    public void getConditionalRecommendations_test1() {
+        ArrayList<Integer> list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());
+
+        initDB_Viewers(5);
+        initDB_Movies(5);
+
+        // viewer1:     viewed movies: 3      likes movies: none
+        Solution.addView(1, 3);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(0, list.size());
+
+        // getSimilarViewers(1):
+        list = Solution.getSimilarViewers(1);
+        assertEquals(0, list.size());
+
+        // viewer1:     viewed movies: 3      likes movies: 3
+        Solution.addMovieRating(1, 3, MovieRating.LIKE);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(0, list.size());
+
+
+        // viewer2:     viewed movies: 3      likes movies: none
+        Solution.addView(2, 3);
+
+        list = Solution.getSimilarViewers(1);
+        assertEquals(1, list.size());
+        assertEquals(Integer.valueOf(2), list.get(0));
+
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(0, list.size());
+
+        // viewer2:     viewed movies: 3      likes movies: none        dislikes movies: 3
+        Solution.addMovieRating(2, 3, MovieRating.DISLIKE);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(0, list.size());
+
+        // viewer2:     viewed movies: 3,2      likes movies: none        dislikes movies: 3
+        Solution.addView(2, 2);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(0, list.size());
+
+        // viewer2:     viewed movies: 3,2      likes movies: 3        dislikes movies: none    (now v3 is similarRank)
+        Solution.removeMovieRating(2, 3);
+        Solution.addMovieRating(2, 3, MovieRating.LIKE);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(1, list.size());
+        assertEquals(Integer.valueOf(2), list.get(0));
+
+        // viewer2:     viewed movies: 3,2,4      likes movies: 3,4     dislikes movies: none    (now v3 is similarRank)
+        Solution.addView(2, 4);
+        Solution.addMovieRating(2, 4, MovieRating.LIKE);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(2, list.size());
+        assertEquals(Integer.valueOf(4), list.get(0));
+        assertEquals(Integer.valueOf(2), list.get(1));
+
+
+        // viewer2:     viewed movies: 3,2,4,1      likes movies: 3,4       dislikes movies: 1   (now v3 is similarRank)
+        Solution.addView(2, 1);
+        Solution.addMovieRating(2, 1, MovieRating.DISLIKE);
+        list = Solution.getConditionalRecommendations(1, 3);
+        assertEquals(2, list.size());
+        assertEquals(Integer.valueOf(4), list.get(0));
+        assertEquals(Integer.valueOf(2), list.get(1));
+
+    }
+
+    @Test
+    public void getConditionalRecommendations_test2() {
+        ArrayList<Integer> list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());
+
+        initDB_Viewers(20);
+        initDB_Movies(25);
+
+        // viewer1:     movies=1-5
+        for (int j = 1; j <= 5; j++) {
+            Solution.addView(1, j);
+        }
+        list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());
+
+        // add 16 similar viewers (ID: 2-17, SimilarMovies:1-4)
+        for (int i = 2; i <= 17; i++) {
+            for (int j = 1; j <= 4; j++) {
+                Solution.addView(i, j);
+            }
+        }
+        list = Solution.getSimilarViewers(1);
+        assertEquals(16, list.size());
+        for (int i = 2; i <= 17; i++) {
+            assertTrue(list.contains(i));
+        }
+
+        list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());
+
+        // viewer1: add LIKE/DISLIKE to movies 1,2
+        Solution.addMovieRating(1, 1, MovieRating.LIKE);
+        Solution.addMovieRating(1, 2, MovieRating.DISLIKE);
+
+        list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());
+        list = Solution.getConditionalRecommendations(1, 2);
+        assertEquals(0, list.size());
+
+// current status:  ( "-"=didn't view    "+"=didn't view   "V"=LIKE    "X"=DISLIKE )
+// id ||   m1   m2   m3   m4   m5   m6   m7   m8   m9   m10   m11   m12   m13   m14   m15   m16   m17   m18   m19   m20
+// --------------------------------------------------------------------------------------------------------------------
+// 1  ||   V    +    +    +    +    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 2  ||   +    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 3  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 4  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 5  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 6  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 7  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 8  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 9  ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 10 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 11 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 12 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 13 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 14 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 15 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 16 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 17 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// ---------------------------------------------------------------------------------------------------------------------
+
+        // add LIKEs to movies1: viewerID=3-15
+        for (int i = 3; i <= 15; i++) { // now viewerID=3-15 are similar rankers to {viewer1,movie1,rate=LIKE}
+            Solution.addMovieRating(i, 1, MovieRating.LIKE);
+        }
+        // add DISLIKEs to movies2: viewerID=5-16
+        for (int i = 5; i <= 16; i++) { // now viewerID=3-16 are similar rankers to {viewer1,movie2,rate=DISLIKE}
+            Solution.addMovieRating(i, 2, MovieRating.DISLIKE);
+        }
+
+        list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(0, list.size());// viewer1 already view movies 1-4
+        list = Solution.getConditionalRecommendations(1, 2);
+        assertEquals(0, list.size());// viewer1 already view movies 1-4
+
+// current status:  ( "-"=didn't view    "+"=didn't view   "V"=LIKE    "X"=DISLIKE )
+// id ||   m1   m2   m3   m4   m5   m6   m7   m8   m9   m10   m11   m12   m13   m14   m15   m16   m17   m18   m19   m20
+// --------------------------------------------------------------------------------------------------------------------
+// 1  ||   V    +    +    +    +    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 2  ||   +    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 3  ||   V    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 4  ||   V    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 5  ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 6  ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 7  ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 8  ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 9  ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 10 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 11 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 12 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 13 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 14 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 15 ||   V    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 16 ||   +    X    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 17 ||   +    +    +    +    -    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// ---------------------------------------------------------------------------------------------------------------------
+
+
+        Solution.addView(4, 6);
+
+        Solution.addView(2, 7);
+
+        for (int i = 4; i <= 5; i++) {
+            Solution.addView(i, 8);
+        }
+
+        for (int i = 13; i <= 13; i++) {
+            Solution.addView(i, 9);
+            Solution.addMovieRating(i, 9, MovieRating.LIKE);
+        }
+
+        for (int i = 3; i <= 16; i++) {
+            Solution.addView(i, 11);
+            Solution.addMovieRating(i, 11, MovieRating.LIKE);
+        }
+
+        for (int i = 3; i <= 17; i++) {
+            Solution.addView(i, 12);
+            Solution.addMovieRating(i, 12, MovieRating.LIKE);
+        }
+
+        for (int i = 8; i <= 9; i++) {
+            Solution.addView(i, 14);
+            Solution.addMovieRating(i, 14, MovieRating.LIKE);
+        }
+
+        for (int i = 3; i <= 7; i++) {
+            Solution.addView(i, 16);
+            Solution.addMovieRating(i, 16, MovieRating.LIKE);
+        }
+
+        for (int i = 11; i <= 18; i++) {
+            Solution.addView(i, 17);
+            Solution.addMovieRating(i, 17, MovieRating.LIKE);
+        }
+
+        for (int i = 6; i <= 9; i++) {
+            Solution.addView(i, 18);
+            Solution.addMovieRating(i, 18, MovieRating.LIKE);
+        }
+
+        for (int i = 9; i <= 15; i++) {
+            Solution.addView(i, 20);
+            Solution.addMovieRating(i, 20, MovieRating.LIKE);
+        }
+
+        for (int i = 12; i <= 14; i++) {
+            Solution.addView(i, 19);
+        }
+
+// current status:  ( "-"=didn't view    "+"=didn't view   "V"=LIKE    "X"=DISLIKE )
+// id ||   m1   m2   m3   m4   m5   m6   m7   m8   m9   m10   m11   m12   m13   m14   m15   m16   m17   m18   m19   m20
+// --------------------------------------------------------------------------------------------------------------------
+// 1  ||   V    +    +    +    +    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 2  ||   +    X    +    +    -    -    +    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 3  ||   V    +    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     -     -     -
+// 4  ||   V    +    +    +    -    +    -    +    -     -     V     V     -     -     -     V     -     -     -     -
+// 5  ||   V    X    +    +    -    -    -    +    -     -     V     V     -     -     -     V     -     -     -     -
+// 6  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     V     -     -
+// 7  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     V     -     -
+// 8  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     V     -     -     -     V     -     -
+// 9  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     V     -     -     -     V     -     V
+// 10 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     -     -     -     V
+// 11 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 12 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     +     V
+// 13 ||   V    X    +    +    -    -    -    -    V     -     V     V     -     -     -     -     V     -     +     V
+// 14 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     +     V
+// 15 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 16 ||   +    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     -
+// 17 ||   +    +    +    +    -    -    -    -    -     -     -     V     V     -     -     -     V     -     -     -
+// 18 ||   -    -    -    -    -    -    -    -    -     -     -     -     -     -     -     -     V     -     -     -
+
+        list = Solution.getConditionalRecommendations(1, 1);
+        assertEquals(10, list.size());
+        assertEquals(Integer.valueOf(6), list.get(8));      // 1  VIEWs
+        assertEquals(Integer.valueOf(8), list.get(9));      // 2  VIEWs
+        assertEquals(Integer.valueOf(9), list.get(7));      // 1  LIKEs
+        assertEquals(Integer.valueOf(11), list.get(0));     // 14 LIKEs
+        assertEquals(Integer.valueOf(12), list.get(1));     // 14 LIKEs
+        assertEquals(Integer.valueOf(14), list.get(6));     // 2  LIKEs
+        assertEquals(Integer.valueOf(16), list.get(3));     // 5  LIKEs
+        assertEquals(Integer.valueOf(17), list.get(4));     // 5  LIKEs
+        assertEquals(Integer.valueOf(18), list.get(5));     // 4  LIKEs
+        // assertEquals(Integer.valueOf(19), list.get(10));    // 3  VIEWs  // out of bounds
+        assertEquals(Integer.valueOf(20), list.get(2));     // 7  LIKEs
+
+
+        list = Solution.getConditionalRecommendations(1, 2);
+        assertEquals(10, list.size());
+        assertEquals(Integer.valueOf(11), list.get(0));     // 12 LIKEs
+        assertEquals(Integer.valueOf(12), list.get(1));     // 12 LIKEs
+        assertEquals(Integer.valueOf(20), list.get(2));     // 7 LIKEs
+        assertEquals(Integer.valueOf(17), list.get(3));      // 6 LIKEs
+        assertEquals(Integer.valueOf(18), list.get(4));      // 4 LIKEs
+        assertEquals(Integer.valueOf(16), list.get(5));      // 3 LIKEs
+        assertEquals(Integer.valueOf(14), list.get(6));      // 2 LIKEs
+        assertEquals(Integer.valueOf(9), list.get(7));      // 1 LIKEs
+        assertEquals(Integer.valueOf(8), list.get(8));      // 1 VIEWs
+        assertEquals(Integer.valueOf(19), list.get(9));      // 3 VIEWs
+
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+        for (int i = 12; i <= 14; i++) {
+            Solution.removeView(i, 19);
+        }
+
+// current status:  ( "-"=didn't view    "+"=didn't view   "V"=LIKE    "X"=DISLIKE )
+// id ||   m1   m2   m3   m4   m5   m6   m7   m8   m9   m10   m11   m12   m13   m14   m15   m16   m17   m18   m19   m20
+// --------------------------------------------------------------------------------------------------------------------
+// 1  ||   V    +    +    +    +    -    -    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 2  ||   +    X    +    +    -    -    +    -    -     -     -     -     -     -     -     -     -     -     -     -
+// 3  ||   V    +    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     -     -     -
+// 4  ||   V    +    +    +    -    +    -    +    -     -     V     V     -     -     -     V     -     -     -     -
+// 5  ||   V    X    +    +    -    -    -    +    -     -     V     V     -     -     -     V     -     -     -     -
+// 6  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     V     -     -
+// 7  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     V     -     V     -     -
+// 8  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     V     -     -     -     V     -     -
+// 9  ||   V    X    +    +    -    -    -    -    -     -     V     V     -     V     -     -     -     V     -     V
+// 10 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     -     -     -     V
+// 11 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 12 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 13 ||   V    X    +    +    -    -    -    -    V     -     V     V     -     -     -     -     V     -     -     V
+// 14 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 15 ||   V    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     V
+// 16 ||   +    X    +    +    -    -    -    -    -     -     V     V     -     -     -     -     V     -     -     -
+// 17 ||   +    +    +    +    -    -    -    -    -     -     -     V     V     -     -     -     V     -     -     -
+// 18 ||   -    -    -    -    -    -    -    -    -     -     -     -     -     -     -     -     V     -     -     -
+
+        list = Solution.getConditionalRecommendations(1, 2);
+        assertEquals(9, list.size());
+        assertEquals(Integer.valueOf(11), list.get(0));     // 12 LIKEs
+        assertEquals(Integer.valueOf(12), list.get(1));     // 12 LIKEs
+        assertEquals(Integer.valueOf(20), list.get(2));     // 7 LIKEs
+        assertEquals(Integer.valueOf(17), list.get(3));     // 6 LIKEs
+        assertEquals(Integer.valueOf(18), list.get(4));     // 4 LIKEs
+        assertEquals(Integer.valueOf(16), list.get(5));     // 3 LIKEs
+        assertEquals(Integer.valueOf(14), list.get(6));     // 2 LIKEs
+        assertEquals(Integer.valueOf(9), list.get(7));      // 1 LIKEs
+        assertEquals(Integer.valueOf(8), list.get(8));      // 1 VIEWs
 
     }
 
