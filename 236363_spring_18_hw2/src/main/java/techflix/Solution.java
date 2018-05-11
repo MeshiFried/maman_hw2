@@ -1,5 +1,6 @@
 package techflix;
 
+import com.sun.scenario.effect.impl.state.LinearConvolveKernel;
 import techflix.business.Movie;
 import techflix.business.MovieRating;
 import techflix.business.ReturnValue;
@@ -805,8 +806,6 @@ public class Solution {
                     "    )\n" +
                     ")\n" +
                     "    AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=" + numberOfViews_75percent + " \n");
-
-
             res = pstmt.executeQuery();
 
             while (res.next()) {
@@ -814,9 +813,7 @@ public class Solution {
                 if (viewerID != viewerId) list.add(viewerID);
             }
 
-
             res.close();
-
         } catch (SQLException e) {
             return new ArrayList<Integer>();
         } finally {
@@ -837,14 +834,104 @@ public class Solution {
 
 
     public static ArrayList<Integer> mostInfluencingViewers() {
+        ArrayList<Integer> list = new ArrayList<Integer>();
 
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+
+            pstmt = connection.prepareStatement(
+                    " SELECT Viewers.ViewerID AS id, COUNT(Rate) AS ratesCount, COUNT(Views.ViewerID) AS viewsCount " +
+                            "\n" +
+                            "FROM Viewers LEFT JOIN Views ON (Viewers.ViewerID = Views.ViewerID) \n" + "GROUP BY id " +
+                            "\n" +
+                            "ORDER BY viewsCount DESC, ratesCount DESC, id ASC \n" + "LIMIT 10 \n");
+            ResultSet res = pstmt.executeQuery();
+
+            while (res.next()) {
+                Integer viewerID = res.getInt(1);
+                list.add(viewerID);
+            }
+            res.close();
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+        }
+
+        return list;
     }
 
 
     public static ArrayList<Integer> getMoviesRecommendations(Integer viewerId) {
+        ArrayList<Integer> list = new ArrayList<Integer>();
 
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+
+            pstmt = connection.prepareStatement("SELECT Count(*) FROM Views WHERE ViewerID = " + viewerId);
+            ResultSet res = pstmt.executeQuery();
+            res.next();
+            int numberOfViews = res.getInt(1);
+            int numberOfViews_75percent = (int) ceil(0.75 * numberOfViews);
+
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarViewers");
+            pstmt.execute();
+
+            pstmt = connection.prepareStatement("CREATE TABLE SimilarViewers(ViewerID) AS \n" +
+                    "SELECT ViewerID FROM \n" +
+                    "(\n" +
+                    "    SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
+                    "    (\n" +
+                    "        SELECT MovieID FROM Views WHERE ViewerID=" + viewerId + " \n" +
+                    "    )\n" +
+                    ")\n" +
+                    "    AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=" + numberOfViews_75percent + " \n");
+            pstmt.execute();
+
+            MovieRating rate = MovieRating.LIKE;
+            pstmt = connection.prepareStatement
+                    ("SELECT MovieID AS id, SUM(CASE Rate WHEN "+ "'" + rate + "'"  + " THEN 1 ELSE 0 END) as ratesCount \n" +
+                    "FROM Views, SimilarViewers \n" + "WHERE (Views.ViewerID=SimilarViewers.ViewerID \n" +
+                    "AND MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=" + viewerId + ")) \n" +
+                    "GROUP BY id \n" + "ORDER BY ratesCount DESC, id ASC \n" + "LIMIT 10 \n");
+            res = pstmt.executeQuery();
+
+            while (res.next()) {
+                Integer movieID = res.getInt(1);
+                list.add(movieID);
+            }
+
+            pstmt = connection.prepareStatement("DROP TABLE IF EXISTS SimilarViewers");
+            pstmt.execute();
+
+            res.close();
+        } catch (SQLException e) {
+            return new ArrayList<Integer>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return new ArrayList<Integer>();
+            }
+        }
+
+        return list;
     }
 
 
