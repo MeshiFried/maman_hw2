@@ -151,13 +151,13 @@ public class SimpleTest extends AbstractTest {
         viewer3.setName("viewer3");
         viewer3.setId(-5);
         val = Solution.updateViewer(viewer3);
-        assertEquals(ReturnValue.BAD_PARAMS, val);
+        assertEquals(ReturnValue.NOT_EXISTS, val);
 
         Viewer viewer4 = new Viewer();
         viewer4.setName(null);
         viewer4.setId(1);
         val = Solution.updateViewer(viewer3);
-        assertEquals(ReturnValue.BAD_PARAMS, val);
+        assertEquals(ReturnValue.NOT_EXISTS, val);
     }
 
     @Test
@@ -611,6 +611,9 @@ public class SimpleTest extends AbstractTest {
         Solution.addMovieRating(1, 1, MovieRating.LIKE);
         int count = Solution.getMovieLikesCount(2);
         assertEquals(0, count);
+
+        count = Solution.getMovieLikesCount(-1);
+        assertEquals(0, count);
     }
 
     // getMovieLikeCount:
@@ -680,6 +683,9 @@ public class SimpleTest extends AbstractTest {
         Solution.addView(1, 1);
         Solution.addMovieRating(1, 1, MovieRating.DISLIKE);
         int count = Solution.getMovieDislikesCount(2);
+        assertEquals(0, count);
+
+        count = Solution.getMovieDislikesCount(-1);
         assertEquals(0, count);
     }
 
@@ -963,7 +969,7 @@ public class SimpleTest extends AbstractTest {
         // (10) viewer13:    views=2     rates=1     id=13
         // (11) viewer9:     views=1     rates=1     id=9
         // (12) viewer10:    views=1     rates=0     id=10
-        // (13) viewer6:     views=0     rates=0     id=6
+        // (13) viewer6:     views=0     rates=0     id=6 -- not include! have 0 views
         list = Solution.mostInfluencingViewers();
         assertEquals(10, list.size());
         assertEquals(Integer.valueOf(4), list.get(0));
@@ -1599,6 +1605,159 @@ public class SimpleTest extends AbstractTest {
         assertEquals(Integer.valueOf(9), list.get(7));      // 1 LIKEs
         assertEquals(Integer.valueOf(8), list.get(8));      // 1 VIEWs
 
+    }
+
+    // different issues:
+
+    @Test
+    public void test_Views_complex() {
+
+        // part 1: simple case
+
+        // add new Viewer: v1
+        Viewer v1 = new Viewer();
+        v1.setId(1);
+        v1.setName("v1_name");
+        assertEquals(ReturnValue.OK, Solution.createViewer(v1));
+
+        // add new Movie: m1
+        Movie m1 = new Movie();
+        m1.setId(1);
+        m1.setName("m1_name");
+        m1.setDescription("m1_description");
+        assertEquals(ReturnValue.OK, Solution.createMovie(m1));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(0, Solution.getMovieDislikesCount(1));
+
+        // add new View: v1-m1
+        assertEquals(ReturnValue.OK, Solution.addView(1, 1));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(0, Solution.getMovieDislikesCount(1));
+
+        // remove View: v1-m1
+        assertEquals(ReturnValue.OK, Solution.removeView(1, 1));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(0, Solution.getMovieDislikesCount(1));
+
+        // part 2: add rate before aff view, remove view after remove rate
+
+        // add new Movie: m2
+        Movie m2 = new Movie();
+        m2.setId(2);
+        m2.setName("m2_name");
+        m2.setDescription("m2_description");
+        assertEquals(ReturnValue.OK, Solution.createMovie(m2));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // try to add Rate: v1-m2-like >> fail
+        assertEquals(ReturnValue.NOT_EXISTS, Solution.addMovieRating(1, 2, MovieRating.LIKE));
+
+        // add new View: v1-m2
+        assertEquals(ReturnValue.OK, Solution.addView(1, 2));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // add Rate: v1-m2-like
+        assertEquals(ReturnValue.OK, Solution.addMovieRating(1, 2, MovieRating.LIKE));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(1, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // update Rate: v1-m2-dislike
+        assertEquals(ReturnValue.OK, Solution.addMovieRating(1, 2, MovieRating.DISLIKE));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(1, Solution.getMovieDislikesCount(2));
+
+        // remove Rate: v1-m2-dislike:
+        assertEquals(ReturnValue.OK, Solution.removeMovieRating(1, 2));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // remove view: v1-m2:
+        assertEquals(ReturnValue.OK, Solution.removeView(1, 2));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // part 3: remove view without remove rate and check the rate also delete
+
+        // add new Viewer: v2
+        Viewer v2 = new Viewer();
+        v2.setId(2);
+        v2.setName("v2_name");
+        assertEquals(ReturnValue.OK, Solution.createViewer(v2));
+
+        // add new View: v2-m2
+        assertEquals(ReturnValue.OK, Solution.addView(2, 2));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // add Rate: v2-m2-dislike
+        assertEquals(ReturnValue.OK, Solution.addMovieRating(2, 2, MovieRating.DISLIKE));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(1, Solution.getMovieDislikesCount(2));
+
+        // remove view: v2-m2:
+        assertEquals(ReturnValue.OK, Solution.removeView(2, 2));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // part 4: remove movie without remove view/rate and check the view/rate also delete
+
+        // add new Viewer: v3
+        Viewer v3 = new Viewer();
+        v3.setId(3);
+        v3.setName("v3_name");
+        assertEquals(ReturnValue.OK, Solution.createViewer(v3));
+
+        // add new View: v3-m1
+        assertEquals(ReturnValue.OK, Solution.addView(3, 1));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(0, Solution.getMovieDislikesCount(1));
+
+        // add Rate: v3-m1-like
+        assertEquals(ReturnValue.OK, Solution.addMovieRating(3, 1, MovieRating.DISLIKE));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(1, Solution.getMovieDislikesCount(1));
+
+        // remove Movie: m1:
+        assertEquals(ReturnValue.OK, Solution.deleteMovie(m1));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(1));
+        assertEquals(0, Solution.getMovieLikesCount(1));
+        assertEquals(0, Solution.getMovieDislikesCount(1));
+
+        // part 5: remove viewer without remove view/rate and check the view/rate also delete
+
+        // add new View: v3-m2
+        assertEquals(ReturnValue.OK, Solution.addView(3, 2));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
+
+        // add Rate: v3-m2-dislike
+        assertEquals(ReturnValue.OK, Solution.addMovieRating(3, 2, MovieRating.DISLIKE));
+        assertEquals(Integer.valueOf(1), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(1, Solution.getMovieDislikesCount(2));
+
+        // remove Viewer: v3:
+        assertEquals(ReturnValue.OK, Solution.deleteViewer(v3));
+        assertEquals(Integer.valueOf(0), Solution.getMovieViewCount(2));
+        assertEquals(0, Solution.getMovieLikesCount(2));
+        assertEquals(0, Solution.getMovieDislikesCount(2));
     }
 
 }
