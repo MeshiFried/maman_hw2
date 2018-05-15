@@ -439,9 +439,6 @@ public class Solution {
     }
 
     public static ReturnValue deleteMovie(Movie movie) {
-        if (movie.getId() <= 0) {
-            return ReturnValue.BAD_PARAMS;
-        }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -475,7 +472,6 @@ public class Solution {
     }
 
     public static ReturnValue updateMovie(Movie movie) {
-        if (movie.getId() <= 0 || movie.getDescription() == null) return ReturnValue.BAD_PARAMS;
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
@@ -569,6 +565,9 @@ public class Solution {
             }
             if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.FOREIGN_KEY_VIOLATION.getValue()) {
                 return ReturnValue.NOT_EXISTS;
+            }
+            if (Integer.valueOf(e.getSQLState()) == PostgresSQLErrorCodes.CHECK_VIOLATION.getValue()) {
+                return ReturnValue.NOT_EXISTS;
             } else {
                 return ReturnValue.ERROR;
             }
@@ -653,9 +652,6 @@ public class Solution {
 
 
     public static ReturnValue addMovieRating(Integer viewerId, Integer movieId, MovieRating rating) {
-        if (viewerId <= 0 || movieId <= 0 || rating == null) {
-            return ReturnValue.BAD_PARAMS;
-        }
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {

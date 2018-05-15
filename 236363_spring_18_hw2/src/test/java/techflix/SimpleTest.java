@@ -267,7 +267,7 @@ public class SimpleTest extends AbstractTest {
         movie2.setName("Finding Nemo");
         movie2.setDescription("Disney");
         ReturnValue val = Solution.deleteMovie(movie2);
-        assertEquals(ReturnValue.BAD_PARAMS, val);
+        assertEquals(ReturnValue.NOT_EXISTS, val);
     }
 
     // getMovie:
@@ -329,7 +329,7 @@ public class SimpleTest extends AbstractTest {
         movie1.setDescription(null);
 
         ReturnValue val = Solution.updateMovie(movie1);
-        assertEquals(ReturnValue.BAD_PARAMS, val);
+        assertEquals(ReturnValue.NOT_EXISTS, val);
     }
 
     // addView:
@@ -1760,4 +1760,40 @@ public class SimpleTest extends AbstractTest {
         assertEquals(0, Solution.getMovieDislikesCount(2));
     }
 
+    @Test
+    public void check_BAD_PARAM() {
+        Viewer v1 = new Viewer();
+        v1.setName("v1_name");
+        v1.setId(-1);
+        assertEquals(NOT_EXISTS, Solution.deleteViewer(v1));
+
+        Movie m1 = new Movie();
+        m1.setId(-1);
+        m1.setName("m1_name");
+        m1.setDescription("m1_description");
+        assertEquals(NOT_EXISTS, Solution.deleteMovie(m1));
+
+        v1.setId(1);
+        assertEquals(NOT_EXISTS, Solution.addView(1,1));
+        assertEquals(OK, Solution.createViewer(v1));
+        assertEquals(NOT_EXISTS, Solution.addView(1,1));
+        assertEquals(NOT_EXISTS, Solution.addView(-1,1));
+        assertEquals(NOT_EXISTS, Solution.addView(1,-1));
+
+        m1.setId(1);
+        assertEquals(OK, Solution.createMovie(m1));
+        assertEquals(OK, Solution.addView(1,1));
+
+        assertEquals(NOT_EXISTS, Solution.removeView(-1,1));
+        assertEquals(NOT_EXISTS, Solution.removeView(1,-1));
+        assertEquals(OK, Solution.removeView(1,1));
+
+
+        assertEquals(NOT_EXISTS, Solution.addMovieRating(1,1,MovieRating.LIKE));
+        assertEquals(OK, Solution.addView(1,1));
+        assertEquals(NOT_EXISTS, Solution.addMovieRating(-1,1,MovieRating.LIKE));
+        assertEquals(NOT_EXISTS, Solution.addMovieRating(1,-1,MovieRating.LIKE));
+        assertEquals(OK, Solution.addMovieRating(1,1,MovieRating.LIKE));
+
+    }
 }
