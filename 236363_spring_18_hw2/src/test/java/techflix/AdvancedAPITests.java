@@ -623,13 +623,13 @@ public class AdvancedAPITests extends AbstractTest {
         assertEquals(0, lst3.size());
 
         ArrayList<Integer> lst4 = Solution.getMoviesRecommendations(4);
-   /*     assertEquals(new Integer(12), lst4.get(0));
+        assertEquals(new Integer(12), lst4.get(0));
         assertEquals(new Integer(13), lst4.get(1));
         assertEquals(new Integer(14), lst4.get(2));
         assertEquals(new Integer(4), lst4.get(3));
         assertEquals(new Integer(6), lst4.get(4));
         assertEquals(new Integer(11), lst4.get(5));
-*/
+
         ArrayList<Integer> lst5 = Solution.getMoviesRecommendations(5);
         assertEquals(new Integer(4), lst5.get(0));
         assertEquals(new Integer(12), lst5.get(1));
@@ -669,7 +669,7 @@ public class AdvancedAPITests extends AbstractTest {
         assertEquals(new Integer(12), lst13.get(4));
         assertEquals(new Integer(13), lst13.get(5));
         assertEquals(new Integer(3), lst13.get(6));
-       // assertEquals(new Integer(15), lst13.get(7));
+        assertEquals(new Integer(15), lst13.get(7));
 
         ArrayList<Integer> lst14 = Solution.getMoviesRecommendations(14);
         assertEquals(0, lst14.size());

@@ -777,7 +777,7 @@ public class Solution {
             pstmt = connection.prepareStatement("SELECT ViewerID FROM \n" +
                     "( SELECT ViewerID,MovieID FROM Views WHERE MovieID IN \n" +
                     "    ( SELECT MovieID FROM Views WHERE ViewerID=(?) ) \n " +
-                    ") AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=(?) AND ViewerID!=(?) \n");
+                    ") AS Temp GROUP BY ViewerID HAVING COUNT(MovieID)>=(?) AND ViewerID!=(?) ORDER BY ViewerID ASC \n");
             pstmt.setInt(1, viewerId);
             pstmt.setInt(2, (int) ceil(0.75 * numberOfViews));
             pstmt.setInt(3, viewerId);
@@ -878,7 +878,8 @@ public class Solution {
                     ("SELECT MovieID AS id, SUM(CASE Rate WHEN \'LIKE\' THEN 1 ELSE 0 END) AS ratesCount \n" +
                             "FROM Views, SimilarViewers \n WHERE (Views.ViewerID=SimilarViewers.ViewerID \n" +
                             "AND MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=(?)) \n" +
-                            "AND (Rate IS NULL OR Rate=\'LIKE\'))" +
+                            //"AND (Rate IS NULL OR Rate=\'LIKE\'))" +
+                            ")" +
                             " GROUP BY id ORDER BY ratesCount DESC, id ASC LIMIT 10");
             pstmt.setInt(1, viewerId);
             res = pstmt.executeQuery();
@@ -993,7 +994,8 @@ public class Solution {
                             "ratesCount \n FROM Views, SimilarRankers \n " +
                             "WHERE ((Views.ViewerID=SimilarRankers.ViewerID) \n" +
                             "AND (MovieID NOT IN (SELECT MovieID FROM Views WHERE Views.ViewerID=(?))) \n" +
-                            "AND (Rate IS NULL OR Rate=\'LIKE\')) " +
+                            //"AND (Rate IS NULL OR Rate=\'LIKE\')) " +
+                            ") " +
                             "GROUP BY id ORDER BY ratesCount DESC, id ASC LIMIT 10");
             pstmt.setInt(1, viewerId);
             res = pstmt.executeQuery();
